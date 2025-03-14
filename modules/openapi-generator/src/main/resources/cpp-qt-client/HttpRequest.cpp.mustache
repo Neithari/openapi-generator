@@ -157,7 +157,6 @@ QString {{prefix}}HttpRequestWorker::http_attribute_encode(QString attribute_nam
     return QString("%1=\"%2\"; %1*=utf-8''%3").arg(attribute_name, result, result_utf8);
 }
 
-
 QString {{prefix}}HttpRequestWorker::http_attribute_encode(QString attribute_name, QString input) {
     // decode the input attribute based on RFC 5987 with extended notation support
     input = input.trimmed();
