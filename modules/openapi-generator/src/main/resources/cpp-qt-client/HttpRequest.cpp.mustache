@@ -202,13 +202,13 @@ QString {{prefix}}HttpRequestWorker::http_attribute_encode(QString attribute_nam
         Q_UNUSED(language);
         attribute_value = attribute_value.sliced(value_start_pos).trimmed();
 
-        if (charset.compare(u"iso-8859-1", Qt::CaseInsensitive) == 0) {
-            return QString::fromLatin1(QByteArray::fromPercentEncoding(attribute_value.toLatin1()));
+        if (charset.compare(u"iso-8859-1", Qt::CaseInsensitive) != 0) {
+            // treat everything else as UTF-8 because extension character sets (mime-charset) are reserved for future use
+            return QUrl::fromPercentEncoding(attribute_value.toUtf8());
         }
     }
-    // treat everything else as UTF-8 encoding because extension character sets (mime-charset) are reserved for future use.
 
-    return QUrl::fromPercentEncoding(attribute_value.toUtf8());
+    return QString::fromLatin1(QByteArray::fromPercentEncoding(attribute_value.toLatin1()));
 }
 
 void {{prefix}}HttpRequestWorker::execute({{prefix}}HttpRequestInput *input) {
