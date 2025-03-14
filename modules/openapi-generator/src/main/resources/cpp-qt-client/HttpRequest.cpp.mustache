@@ -171,18 +171,14 @@ QString {{prefix}}HttpRequestWorker::http_attribute_encode(QString attribute_nam
         return {};
     }
 
-    // check for the extended notation
-    const auto asterisk_pos = input.indexOf('*');
-    if (asterisk_pos > equal_sign_pos) {
-        return {};
-    }
-
     auto attribute_value = input.sliced(equal_sign_pos + 1).trimmed();
     if (attribute_value.isEmpty()) {
         return {};
     }
 
-    if (asterisk_pos < 0) {
+    // check for the extended notation
+    const auto asterisk_pos = input.indexOf('*');
+    if (asterisk_pos < 0 || asterisk_pos > equal_sign_pos) {
         // non-extended notation
         static constexpr QStringView escaped_quote = u"\"";
         static constexpr QChar quote{ u'"' };
