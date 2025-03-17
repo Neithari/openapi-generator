@@ -164,6 +164,59 @@ QString PFXHttpRequestWorker::http_attribute_encode(QString attribute_name, QStr
     return QString("%1=\"%2\"; %1*=utf-8''%3").arg(attribute_name, result, result_utf8);
 }
 
+QString PFXHttpRequestWorker::http_attribute_decode(QString attribute_name, QString input) {
+    // decode the input attribute based on RFC 5987 with extended notation support
+    input = input.trimmed();
+
+    if (!input.startsWith(attribute_name)) {
+        return {};
+    }
+
+    const auto equal_sign_pos = input.indexOf('=');
+    if (equal_sign_pos == -1) {
+        return {};
+    }
+
+    auto attribute_value = input.sliced(equal_sign_pos + 1).trimmed();
+    if (attribute_value.isEmpty()) {
+        return {};
+    }
+
+    // check for the extended notation
+    const auto asterisk_pos = input.indexOf('*');
+    if (asterisk_pos < 0 || asterisk_pos > equal_sign_pos) {
+        // non-extended notation
+        static constexpr QStringView escaped_quote = u"\"";
+        static constexpr QChar quote{ u'"' };
+        if ((attribute_value.startsWith(quote) || attribute_value.startsWith(escaped_quote)) && attribute_value.endsWith(quote)) {
+            // remove quotes
+            const auto chop_char_count = attribute_value.endsWith(escaped_quote) ? 2 : 1;
+            attribute_value.slice(1, attribute_value.length() - chop_char_count);
+        }
+    } else {
+        // extended notation
+        const auto charset_end_pos = attribute_value.indexOf('\'');
+        const auto language_end_pos = attribute_value.indexOf('\'', charset_end_pos + 1);
+        const auto value_start_pos = language_end_pos + 1;
+        if (charset_end_pos == -1 || language_end_pos == -1 || value_start_pos >= attribute_value.length()) {
+            // invalid extended notation
+            return {};
+        }
+
+        const auto charset = attribute_value.sliced(0, charset_end_pos).trimmed();
+        const auto language = attribute_value.sliced(charset_end_pos + 1, language_end_pos).trimmed();
+        Q_UNUSED(language);
+        attribute_value = attribute_value.sliced(value_start_pos).trimmed();
+
+        if (charset.compare(u"iso-8859-1", Qt::CaseInsensitive) != 0) {
+            // treat everything else as UTF-8 because extension character sets (mime-charset) are reserved for future use
+            return QUrl::fromPercentEncoding(attribute_value.toUtf8());
+        }
+    }
+
+    return QString::fromLatin1(QByteArray::fromPercentEncoding(attribute_value.toLatin1()));
+}
+
 void PFXHttpRequestWorker::execute(PFXHttpRequestInput *input) {
 
     // reset variables
@@ -430,9 +483,12 @@ void PFXHttpRequestWorker::process_response(QNetworkReply *reply) {
         if ((contentDisposition.count() > 0) && (contentDisposition.first() == QString("attachment"))) {
             QString filename = QUuid::createUuid().toString();
             for (const auto &file : contentDisposition) {
-                if (file.contains(QString("filename"))) {
-                    filename = file.split(QString("="), Qt::SkipEmptyParts).at(1);
-                    break;
+                static constexpr QStringView filenameAttribute = u"filename";
+                if (file.contains(filenameAttribute)) {
+                    filename = http_attribute_decode(filenameAttribute, file);
+                    if (!filename.isEmpty()) {
+                        break;
+                    }
                 }
             }
             PFXHttpFileElement felement;

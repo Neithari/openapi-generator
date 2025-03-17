@@ -23,6 +23,7 @@
 #include <QNetworkReply>
 #include <QObject>
 #include <QString>
+#include <QStringView>
 #include <QTimer>
 #include <QRandomGenerator>
 
@@ -68,6 +69,7 @@ public:
 
     QMap<QString, QString> getResponseHeaders() const;
     QString http_attribute_encode(QString attribute_name, QString input);
+    QString http_attribute_decode(QStringView attribute_name, QStringView input);
     void execute(PFXHttpRequestInput *input);
     static QSslConfiguration *sslDefaultConfiguration;
     void setTimeOut(int timeOutMs);
